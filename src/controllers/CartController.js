@@ -40,6 +40,7 @@ export const getCart = async (req, res) => {
       where: { cartId: cart.id },
       include: [Product]
     });
+
     res.json({ items });
   } catch (error) {
     res.status(500).json({ error: error.message });
