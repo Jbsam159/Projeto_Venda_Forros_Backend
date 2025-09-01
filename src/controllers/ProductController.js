@@ -5,10 +5,10 @@ export const createProduct = async (req, res) => {
 
   try {
     
-    const {name, description, price} = req.body
+    const {name, description, price, stock} = req.body
     const imageUrl = req.file ? `/uploads/${req.file.filename}`: null
 
-    const product = await Product.create({name,description,price: parseFloat(price),imageUrl})
+    const product = await Product.create({name,description,price: parseFloat(price),imageUrl, stock})
     res.status(201).json({message:"Produto Criado Com Sucesso", product})
 
   } catch (error) {

@@ -12,21 +12,28 @@ sequelize.sync({ alter: true })
   .catch((err) => console.error("Erro ao sincronizar modelos:", err));
 
 // Associações corretas:
-Order.hasMany(OrderItem, { foreignKey: "orderId" }); // Um pedido tem muitos itens
-OrderItem.belongsTo(Order, { foreignKey: "orderId" }); // Um item pertence a um pedido
+// Order ↔ OrderItem
+Order.hasMany(OrderItem, { foreignKey: "orderId" });
+OrderItem.belongsTo(Order, { foreignKey: "orderId" });
 
+// Product ↔ OrderItem
 Product.hasMany(OrderItem, { foreignKey: "productId" });
 OrderItem.belongsTo(Product, { foreignKey: "productId" });
 
+// User ↔ Order
 User.hasMany(Order, { foreignKey: "userId" });
 Order.belongsTo(User, { foreignKey: "userId" });
 
+// User ↔ Cart
+User.hasOne(Cart, { foreignKey: "userId" });
 Cart.belongsTo(User, { foreignKey: "userId" });
 
-CartItem.belongsTo(Cart, { foreignKey: "cartId" });
+// Cart ↔ CartItem
 Cart.hasMany(CartItem, { foreignKey: "cartId" });
+CartItem.belongsTo(Cart, { foreignKey: "cartId" });
 
-CartItem.belongsTo(Product, { foreignKey: "productId" });
+// Product ↔ CartItem
 Product.hasMany(CartItem, { foreignKey: "productId" });
+CartItem.belongsTo(Product, { foreignKey: "productId" });
 
-export { User, Product, Order, OrderItem };
+export { User, Product, Order, OrderItem, Cart };

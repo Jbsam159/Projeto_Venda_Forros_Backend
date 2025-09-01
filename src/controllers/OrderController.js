@@ -2,33 +2,77 @@ import Order from "../models/Order.js"
 import OrderItem from "../models/OrderItem.js"
 import Product from "../models/Product.js"
 import User from "../models/User.js"
+import Cart from "../models/Cart.js"
+import CartItem from "../models/CartItem.js"
+import sequelize from "../db/database.js"
 
 export const createOrder = async (req, res) => {
+  const transaction = await sequelize.transaction();
 
   try {
-    
-    const {userId, items} = req.body
+    const userId = req.userId;
+    const { items } = req.body;
 
-    const order = await Order.create({userId, status: "Pendente"})
+    const cart = await Cart.findOne({
+      where: { userId },
+      include: [{ model: CartItem, include: [Product] }],
+      transaction
+    });
 
-    for (const item of items) {
-      const product = await Product.findByPk(item.productId);
-      if (!product) continue;
-      await OrderItem.create({
-        orderId: order.id,
-        productId: item.productId,
-        quantity: item.quantity,
-        price: product.price,
-      });
+    if (!cart || cart.CartItems.length === 0) {
+      await transaction.rollback();
+      return res.status(400).json({ message: "Carrinho vazio" });
     }
 
-    res.status(201).json({ message: "Pedido criado!", orderId: order.id });
+    const order = await Order.create(
+      {
+        userId,
+        total: cart.CartItems.reduce(
+          (sum, item) => sum + item.quantity * item.Product.price,
+          0
+        ),
+        status: "Pendente"
+      },
+      { transaction }
+    );
 
+    for (const item of cart.CartItems) {
+      const product = await Product.findByPk(item.productId, { transaction });
+
+      if (!product) {
+        throw new Error(`Produto ${item.productId} não encontrado`);
+      }
+
+      if (product.stock < item.quantity) {
+        throw new Error(`Estoque insuficiente para o produto: ${product.name}`);
+      }
+
+      await product.update(
+        { stock: product.stock - item.quantity },
+        { transaction }
+      );
+    }
+
+    const orderItems = cart.CartItems.map(item => ({
+      orderId: order.id,
+      productId: item.productId,
+      quantity: item.quantity,
+      price: item.Product.price
+    }));
+
+    await OrderItem.bulkCreate(orderItems, { transaction });
+
+    await CartItem.destroy({ where: { cartId: cart.id }, transaction });
+
+    await transaction.commit();
+
+    res.status(201).json({ message: "Pedido criado com sucesso!", order });
   } catch (error) {
+    await transaction.rollback();
+    console.error(error);
     res.status(500).json({ error: error.message });
   }
-
-}
+};
 
 export const getAllOrders = async (req, res) => {
   try {

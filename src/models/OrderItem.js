@@ -11,7 +11,4 @@ const OrderItem = sequelize.define("OrderItem", {
   price: { type: DataTypes.DECIMAL(10,2), allowNull: false },
 }, { timestamps: false });
 
-OrderItem.belongsTo(Order, { foreignKey: "orderId" });
-OrderItem.belongsTo(Product, { foreignKey: "productId" });
-
 export default OrderItem;
