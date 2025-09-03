@@ -91,3 +91,93 @@ export const getAllOrders = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+export const getOrderHistory = async (req,res) => {
+
+  try {
+
+    const userId = req.userId;
+
+    const orders = await Order.findAll({
+      where: { userId },
+      include: [
+        {
+          model: OrderItem,
+          include: [Product],
+        },
+      ],
+      order: [["createdAt", "DESC"]],
+    });
+
+    res.json({ orders });
+
+  } catch (error) {
+
+    console.error(error);
+    res.status(500).json({ error: "Erro ao buscar pedidos." });
+  
+  }
+
+}
+
+export const reorder = async (req, res) => {
+
+  const transaction = await sequelize.transaction()
+
+  try {
+    
+    const userId = req.userId
+    const {orderId} = req.params
+
+    const order = await Order.findOne({
+      where: {id: orderId, userId},
+      include: [{model: OrderItem}],
+      transaction
+    })
+
+    if(!order){
+      await transaction.rollback()
+      return res.status(404).json({message: "Pedido Não Encontrado"})
+    }
+
+    let cart = await Cart.findOne({where: {userId}, transaction})
+
+    if(!cart){
+      cart = await Cart.create({userId}, {transaction})
+    }
+
+    // Inserir itens do pedido no carrinho
+    for (const item of order.OrderItems) {
+      // Verifica se já existe no carrinho
+      const existingCartItem = await CartItem.findOne({
+        where: { cartId: cart.id, productId: item.productId },
+        transaction
+      });
+
+      if (existingCartItem) {
+        await existingCartItem.update(
+          { quantity: existingCartItem.quantity + item.quantity },
+          { transaction }
+        );
+      } else {
+        await CartItem.create(
+          {
+            cartId: cart.id,
+            productId: item.productId,
+            quantity: item.quantity
+          },
+          { transaction }
+        );
+      }
+    }
+
+    await transaction.commit();
+    res.status(200).json({ message: "Itens adicionados ao carrinho com sucesso!" });
+
+  } catch (error) {
+    await transaction.rollback();
+    console.error(error);
+    res.status(500).json({ error: error.message });
+  }
+
+}
