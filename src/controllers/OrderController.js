@@ -181,3 +181,32 @@ export const reorder = async (req, res) => {
   }
 
 }
+
+export const cancelOrder = async (req,res) => {
+
+  try {
+    
+    const {id} = req.params
+    const userId = req.userId
+
+    const order = await Order.findOne({where: {id, userId}})
+
+    if(!order){
+      return res.status(404).json({message: "Pedido Não Encontrado"})
+    }
+
+    if(order.status === "Cancelado"){
+      return res.status(400).json({message: "Pedido já foi cancelado"})
+    }
+
+    order.status = "Cancelado"
+    await order.save()
+
+    res.json({message: "Pedido Cancelado Com Sucesso",order})
+
+  } catch (error) {
+    console.error("Erro ao cancelar pedido:", error);
+    res.status(500).json({ message: "Erro interno no servidor" });
+  }
+
+}
